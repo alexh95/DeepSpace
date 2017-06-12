@@ -1,7 +1,9 @@
 package scene;
 
 import entity.Animation;
+import entity.Ship;
 import h2d.Bitmap;
+import h2d.Sprite;
 import h2d.Text;
 import h2d.Tile;
 import h3d.Matrix;
@@ -11,53 +13,61 @@ import hxd.Res;
 
 class DebugScene extends GameScene 
 {
+	
+	var debugLayer : Sprite;
 
-	private var debugText : Text;
 	private var debugTL : Bitmap;
 	private var debugTR : Bitmap;
 	private var debugBL : Bitmap;
 	private var debugBR : Bitmap;
+	private var debugVC : Bitmap;
+	private var debugHC : Bitmap;
+	
+	private var debugText : Text;
 	private var debugFPS : Text;
 	private var lastFPS : Array<Float>;
 	private var lastFPSCounter : Int;
+	private var debugPosition : Text;
 	
 	private function drawDebug() : Void
 	{
-		if (debugText != null)
+		if (debugLayer != null)
 		{
-			removeChild(debugText);
-			removeChild(debugTL);
-			removeChild(debugTR);
-			removeChild(debugBL);
-			removeChild(debugBR);
+			debugLayer.removeChildren();
 		}
-		debugText = new Text(Res.cour.build(32), this);
+		
+		debugTL = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), debugLayer);
+		debugTL.setPos(0, 0);
+		debugTR = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), debugLayer);
+		debugTR.setPos(width - debugTR.tile.width, 0);
+		debugBL = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), debugLayer);
+		debugBL.setPos(0, height - debugBL.tile.height);
+		debugBR = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), debugLayer);
+		debugBR.setPos(width - debugBR.tile.width, height - debugBR.tile.height);
+		debugVC = new Bitmap(Tile.fromColor(0x00FF00, 2, 32), debugLayer);
+		debugVC.setPos((width - debugVC.tile.width) >> 1, (height - debugVC.tile.height) >> 1);
+		debugHC = new Bitmap(Tile.fromColor(0x00FF00, 32, 2), debugLayer);
+		debugHC.setPos((width - debugHC.tile.width) >> 1, (height - debugHC.tile.height) >> 1);
+		
+		debugText = new Text(Res.cour.build(32), debugLayer);
 		debugText.textColor = 0x00FF00;
-		debugText.text = "DEBUG\nW: " + width + "\nH: " + height;
+		debugText.text = "DEBUG: W: " + width + " H: " + height;
 		debugText.setPos(20, 20);
 		
-		debugTL = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), this);
-		debugTL.setPos(0, 0);
-		debugTR = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), this);
-		debugTR.setPos(width - debugTR.tile.width, 0);
-		debugBL = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), this);
-		debugBL.setPos(0, height - debugBL.tile.height);
-		debugBR = new Bitmap(Tile.fromColor(0x00FF00, 16, 16), this);
-		debugBR.setPos(width - debugBR.tile.width, height - debugBR.tile.height);
-		
-		debugFPS = new Text(Res.cour.build(32), this);
+		debugFPS = new Text(Res.cour.build(32), debugLayer);
 		debugFPS.textColor = 0x00FF00;
-		debugFPS.text = "FPS: ";
-		debugFPS.setPos(20, debugText.textHeight + 20);
-		
+		debugFPS.setPos(width - debugText.textWidth, 20);
 		lastFPS = [];
 		lastFPSCounter = 0;
+		
+		debugPosition = new Text(Res.cour.build(32), debugLayer);
+		debugPosition.textColor = 0x00FF00;
+		debugPosition.setPos(20, debugText.textHeight + 20);
 	}
 	
 	private function updateDebug(dt : Float) : Void
 	{
 		lastFPS[lastFPSCounter] = dt * 60;
-		if (++lastFPSCounter >= 64) lastFPSCounter = 0;
 		
 		var fps : Float = 0;
 		var count : Int = 0;
@@ -68,162 +78,98 @@ class DebugScene extends GameScene
 		}
 		fps /= count;
 		
-		debugFPS.text = "FPS: " + fps;
+		if (++lastFPSCounter >= 32) 
+		{
+			lastFPSCounter = 0;
+			debugFPS.text = Std.string(fps);
+		}
+		
+		debugPosition.text = "X: " + Std.string(- content.x + (width >> 1)) + 
+			"\nY: " +  Std.string(- content.y + (height >> 1));
 	}
 	
-	var ship : Animation;
-	var baseAcc : Float;
-	var baseAngularSpeed : Float;
-	var maxSpeed : Float;
+	var fpsRatio : Float;
+	var content : Sprite;
+	var contentPos : Vector;
+	var lastWidth : Int;
+	var lastHeight : Int;
 	
-	var angle : Float;
-	var velocity : Vector;
+	var ship : Ship;
+	var scaleSpeed : Float;
+	var scrollSpeed : Float;
 	
-	var directionRotationMatrix : Matrix;
-	
+	private function setCamera(contentPos : Vector)
+	{
+		content.x = contentPos.x;
+		content.y = contentPos.z;
+	}
+
 	override public function resize(width : Int, height : Int) : Void 
 	{
 		super.resize(width, height);
+		contentPos.x += (width - lastWidth) / 2.;
+		contentPos.z += (height - lastHeight) / 2.;
+		lastWidth = width;
+		lastHeight = height;
+		setCamera(contentPos);
 		drawDebug();
 	}
 	
 	override public function init() : Void
 	{
+		debugLayer = new Sprite();
+		addChildAt(debugLayer, 2);
 		drawDebug();
-		var shipTile : Tile = Res.ShipSpreadSheet.toTile();
-		var tileSize : Int = cast shipTile.width / 3;
-		ship = new Animation(shipTile.grid(tileSize, -tileSize >> 1, -tileSize >> 1), this);
-		ship.setPos((width - tileSize) / 2, (height - tileSize) / 2);
 		
-		angle = 0.;
-		velocity = new Vector();
-		directionRotationMatrix = new Matrix();
+		content = new Sprite(this);
+		contentPos = new Vector(width >> 1, 0, height >> 1);
+		lastWidth = width;
+		lastHeight = height;
+		setCamera(contentPos);
 		
-		baseAcc = (1.92 / 60.) * (60. / sharedData.targetFPS);
-		maxSpeed = baseAcc * 50;
-		baseAngularSpeed = ((Math.PI / 2.) / 60.) * (60. / sharedData.targetFPS);
+		ship = new Ship(content);
+		
+		ship.baseAcceleration = 1.92 / sharedData.targetFPS;
+		ship.baseAngularSpeed = (Math.PI / 2.) / sharedData.targetFPS;
+		ship.entity.maxSpeed = 300 / sharedData.targetFPS;
+		
+		scaleSpeed = 0.25 / sharedData.targetFPS;
+		scrollSpeed = 192. / sharedData.targetFPS;
 	}
 	
 	override public function update(dt : Float) : Void
 	{
 		updateDebug(dt);
 		
-		var up : Bool = Key.isDown(Key.W);
-		var down : Bool = Key.isDown(Key.S);
-		var left : Bool = Key.isDown(Key.A);
-		var right : Bool = Key.isDown(Key.D);
-		var space : Bool = Key.isDown(Key.SPACE);
+		ship.update(dt);
 		
-		// Ship spread sheet frame
-		// yx | 0 | 1 | 2
-		// 0 | no | up | down
-		// 1 | left | up left | down left
-		// 2 | right | up right | down right
-		
-		var accForward : Bool = up && !down;
-		var accBackward : Bool = down && !up;
-		var noAcc : Bool = !accForward && !accBackward;
-		
-		var turnLeft : Bool = left && !right;
-		var turnRight : Bool = right && !left;
-		var noTurn : Bool = !turnLeft && !turnRight;
-		
-		var tileX : Int = 0;
-		var tileY : Int = 0;
-		
-		if (noAcc) tileX = 0;
-		else if (accForward) tileX = 1;
-		else if (accBackward) tileX = 2;
-		
-		if (noTurn) tileY = 0;
-		else if (turnLeft) tileY = 1;
-		else if (turnRight) tileY = 2;
-		
-		ship.setFrame(tileX, tileY);
-		
-		var acc = new Vector();
-		if (up)
+		if (Key.isDown(Key.O))
 		{
-			acc = acc.add(new Vector(0., 0., -baseAcc));
+			content.scaleX += dt * scaleSpeed;
+			content.scaleY += dt * scaleSpeed;
 		}
-		if (down)
+		if (Key.isDown(Key.P))
 		{
-			acc = acc.add(new Vector(0., 0., baseAcc));
+			content.scaleX -= dt * scaleSpeed;
+			content.scaleY -= dt * scaleSpeed;
 		}
-		if (left)
+		if (Key.isDown(Key.UP))
 		{
-			angle -= dt * baseAngularSpeed;
+			contentPos.z += dt * scrollSpeed;
 		}
-		if (right)
+		if (Key.isDown(Key.DOWN))
 		{
-			angle += dt * baseAngularSpeed;
+			contentPos.z -= dt * scrollSpeed;
 		}
-		while (angle >= 2 * Math.PI) angle -= 2 * Math.PI;
-		while (angle < 0) angle += 2 * Math.PI;
-		
-		directionRotationMatrix.initRotateY(-angle);
-		acc.transform(directionRotationMatrix);
-		
-		if (noAcc && space)
+		if (Key.isDown(Key.LEFT))
 		{
-			var movingDirection : Vector = velocity.clone();
-			movingDirection.normalize();
-			
-			acc = movingDirection.clone();
-			if (velocity.length() <= baseAcc)
-			{
-				acc.scale3(-velocity.length());
-			}
-			else 
-			{
-				acc.scale3(-baseAcc);
-			}
+			contentPos.x += dt * scrollSpeed;
 		}
-		else if (!noAcc && space)
+		if (Key.isDown(Key.RIGHT))
 		{
-			var k : Float = 0.5;
-			
-			var direction : Vector = new Vector(0., 0., -1);
-			direction.transform(directionRotationMatrix);
-			
-			var velocityDir : Vector = direction.clone();
-			velocityDir.scale3(velocity.dot3(direction));
-			
-			var velocityDirP : Vector = velocity.sub(velocityDir);
-			velocityDirP.w = 1;
-			
-			trace("Vd: " + velocityDir + " Vd': " + velocityDirP + " Vd + Vd': " + velocityDir.add(velocityDirP).sub(new Vector()) + " V: " + velocity);
-			
-			var accDirP : Vector = velocityDirP.clone();
-			if (velocityDirP.length() <= baseAcc)
-			{
-				accDirP.scale3(-k);
-			}
-			else
-			{
-				accDirP.normalize();
-				accDirP.scale3(-k * baseAcc);
-			}
-			
-			var accDir : Vector = direction.clone();
-			accDir.scale3(baseAcc - accDirP.length());
-			acc = accDir.add(accDirP).sub(new Vector());
-			
-			trace("Ad: " + accDir + " Ad': " + accDirP + " Ad + Ad': " + accDir.add(accDirP).sub(new Vector()) + " A: " + acc);
+			contentPos.x -= dt * scrollSpeed;
 		}
-		
-		velocity = velocity.add(acc);
-		velocity.w = 1;
-		
-		var speed = velocity.length();
-		if (speed > maxSpeed)
-		{
-			velocity.scale3(maxSpeed / speed);
-		}
-
-		ship.x += dt * velocity.x;
-		ship.y += dt * velocity.z;
-		ship.rotation = angle;
+		setCamera(contentPos);
 	}
 	
 }

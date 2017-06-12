@@ -11,7 +11,7 @@ class Animation extends Bitmap
 	public var tileX(default, null) : Int;
 	public var tileY(default, null) : Int;
 	
-	public function new(tiles : Array<Array<Tile>>, parent : Sprite) 
+	public function new(tiles : Array<Array<Tile>>, ?parent : Sprite) 
 	{
 		super(parent);
 		this.tiles = tiles;
