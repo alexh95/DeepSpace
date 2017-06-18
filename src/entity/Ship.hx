@@ -14,6 +14,8 @@ class Ship extends Sprite
 	public var animation : Animation;
 	public var entity : Entity;
 	
+	public var pixelsPerMeter : Float;
+	
 	public var baseAcceleration : Float;
 	public var baseAngularSpeed : Float;
 	private var directionRotationMatrix : Matrix;
@@ -30,11 +32,16 @@ class Ship extends Sprite
 		var tileDX : Int = -(tileWidth >> 1);
 		var tileDY : Int = -(tileHeight >> 1);
 		var tiles : Array<Array<Tile>> = 
-			[for ( x in 0...tileXCount) [for ( y in 0...tileYCount) 
-				shipTiles.sub(x * tileWidth, y * tileHeight, 
-					tileWidth, tileHeight, 
-					tileDX, tileDY)
-			]];
+		[
+			for ( x in 0...tileXCount) 
+			[
+				for ( y in 0...tileYCount) 
+					shipTiles.sub(
+						x * tileWidth, y * tileHeight, 
+						tileWidth, tileHeight, 
+						tileDX, tileDY)
+			]
+		];
 		
 		animation = new Animation(tiles, this);
 		entity = new Entity();
@@ -72,21 +79,21 @@ class Ship extends Sprite
 		animation.setFrame(tileX, tileY);
 		
 		var acceleration : Vector = new Vector();
-		if (accForward) acceleration = new Vector(0., 0., -baseAcceleration);
-		else if (accBackward) acceleration = new Vector(0., 0., baseAcceleration);
+		if (accForward) acceleration = new Vector(baseAcceleration, 0.);
+		else if (accBackward) acceleration = new Vector(-baseAcceleration, 0.);
 		
 		if (turnLeft) 
-		{
-			entity.angle -= dt * baseAngularSpeed;
-			while (entity.angle < 0) entity.angle += 2 * Math.PI;
-		}
-		else if (turnRight) 
 		{
 			entity.angle += dt * baseAngularSpeed;
 			while (entity.angle >= 2 * Math.PI) entity.angle -= 2 * Math.PI;
 		}
+		else if (turnRight) 
+		{
+			entity.angle -= dt * baseAngularSpeed;
+			while (entity.angle < 0) entity.angle += 2 * Math.PI;
+		}
 		
-		directionRotationMatrix.initRotateY(-entity.angle);
+		directionRotationMatrix.initRotateZ(entity.angle);
 		acceleration.transform(directionRotationMatrix);
 		
 		if (noAcc && space)
@@ -104,40 +111,17 @@ class Ship extends Sprite
 				acceleration.scale3(-baseAcceleration);
 			}
 		}
-		else if (!noAcc && space)
-		{
-			var k : Float = 0.5;
-			
-			var direction : Vector = new Vector(0., 0., -1);
-			direction.transform(directionRotationMatrix);
-			
-			var velocityDir : Vector = direction.clone();
-			velocityDir.scale3(entity.velocity.dot3(direction));
-			
-			var velocityDirP : Vector = entity.velocity.sub(velocityDir);
-			velocityDirP.w = 1;
-			
-			var accDirP : Vector = velocityDirP.clone();
-			if (velocityDirP.length() <= baseAcceleration)
-			{
-				accDirP.scale3(-k);
-			}
-			else
-			{
-				accDirP.normalize();
-				accDirP.scale3(-k * baseAcceleration);
-			}
-			
-			var accDir : Vector = direction.clone();
-			accDir.scale3(baseAcceleration - accDirP.length());
-			acceleration = accDir.add(accDirP).sub(new Vector());
-		}
 		
 		entity.move(acceleration);
 		
-		animation.x = entity.position.x;
-		animation.y = entity.position.z;
-		animation.rotation = entity.angle;
+		var screenCoordinates : Vector = entity.position.clone();
+		screenCoordinates.scale3(pixelsPerMeter);
+		
+		var screenAngle : Float = Math.PI / 2 - entity.angle;
+		
+		x = screenCoordinates.x;
+		y = -screenCoordinates.y;
+		rotation = screenAngle;
 	}
 	
 }

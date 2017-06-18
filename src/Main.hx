@@ -54,7 +54,7 @@ class Main extends App
 	
 	override function init() : Void
 	{
-		wantedFPS = 120;
+		//wantedFPS = 120;
 		sharedData = new SharedData(setGameScene, wantedFPS);
 		setGameScene(DEBUG);
 		onResize();

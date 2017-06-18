@@ -28,6 +28,7 @@ class DebugScene extends GameScene
 	private var lastFPS : Array<Float>;
 	private var lastFPSCounter : Int;
 	private var debugPosition : Text;
+	private var debugShip : Text;
 	
 	private function drawDebug() : Void
 	{
@@ -63,6 +64,9 @@ class DebugScene extends GameScene
 		debugPosition = new Text(Res.cour.build(32), debugLayer);
 		debugPosition.textColor = 0x00FF00;
 		debugPosition.setPos(20, debugText.textHeight + 20);
+		
+		debugShip = new Text(Res.cour.build(32), debugLayer);
+		debugShip.textColor = 0x00FF00;
 	}
 	
 	private function updateDebug(dt : Float) : Void
@@ -84,34 +88,47 @@ class DebugScene extends GameScene
 			debugFPS.text = Std.string(fps);
 		}
 		
-		debugPosition.text = "X: " + Std.string(- content.x + (width >> 1)) + 
-			"\nY: " +  Std.string(- content.y + (height >> 1));
+		debugPosition.text = "Screen Camera Center" + 
+			"\nX: " + Std.string(cameraCenter.x) + 
+			"\nY: " +  Std.string(cameraCenter.y);
+			
+		debugShip.text = "Ship Data" +
+			"\nX: " + Std.string(ship.entity.position.x) + 
+			"\nY: " + Std.string(ship.entity.position.y) +
+			"\nA: " + Std.string(ship.entity.angle);
+		debugShip.setPos(20, debugPosition.y + debugPosition.textHeight + 20);
 	}
 	
-	var fpsRatio : Float;
 	var content : Sprite;
-	var contentPos : Vector;
+	var cameraCenter : Vector;
 	var lastWidth : Int;
 	var lastHeight : Int;
+	
+	var pixelsPerMeter : Float;
 	
 	var ship : Ship;
 	var scaleSpeed : Float;
 	var scrollSpeed : Float;
 	
-	private function setCamera(contentPos : Vector)
+	private function setCameraCenter(cameraCenter : Vector)
 	{
-		content.x = contentPos.x;
-		content.y = contentPos.z;
+		this.cameraCenter = cameraCenter;
+		
+		var screenCoordinates : Vector = cameraCenter.clone();
+		screenCoordinates.scale3(pixelsPerMeter);
+		
+		content.x = -screenCoordinates.x + (width >> 1);
+		content.y = screenCoordinates.y + (height >> 1);
 	}
 
 	override public function resize(width : Int, height : Int) : Void 
 	{
 		super.resize(width, height);
-		contentPos.x += (width - lastWidth) / 2.;
-		contentPos.z += (height - lastHeight) / 2.;
+		cameraCenter.x += (width - lastWidth) / 2.;
+		cameraCenter.y += (height - lastHeight) / 2.;
 		lastWidth = width;
 		lastHeight = height;
-		setCamera(contentPos);
+		setCameraCenter(cameraCenter);
 		drawDebug();
 	}
 	
@@ -122,18 +139,20 @@ class DebugScene extends GameScene
 		drawDebug();
 		
 		content = new Sprite(this);
-		contentPos = new Vector(width >> 1, 0, height >> 1);
+		cameraCenter = new Vector();
 		lastWidth = width;
 		lastHeight = height;
-		setCamera(contentPos);
+		setCameraCenter(cameraCenter);
 		
 		ship = new Ship(content);
 		
-		ship.baseAcceleration = 1.92 / sharedData.targetFPS;
+		pixelsPerMeter = 64. / 5.;
+		ship.pixelsPerMeter = pixelsPerMeter;
+		ship.baseAcceleration = 0.5 / sharedData.targetFPS;
 		ship.baseAngularSpeed = (Math.PI / 2.) / sharedData.targetFPS;
-		ship.entity.maxSpeed = 300 / sharedData.targetFPS;
+		ship.entity.maxSpeed = 30. / sharedData.targetFPS;
 		
-		scaleSpeed = 0.25 / sharedData.targetFPS;
+		scaleSpeed = 1.25 / sharedData.targetFPS;
 		scrollSpeed = 192. / sharedData.targetFPS;
 	}
 	
@@ -155,21 +174,22 @@ class DebugScene extends GameScene
 		}
 		if (Key.isDown(Key.UP))
 		{
-			contentPos.z += dt * scrollSpeed;
+			cameraCenter.y += dt * scrollSpeed;
 		}
 		if (Key.isDown(Key.DOWN))
 		{
-			contentPos.z -= dt * scrollSpeed;
+			cameraCenter.y -= dt * scrollSpeed;
 		}
 		if (Key.isDown(Key.LEFT))
 		{
-			contentPos.x += dt * scrollSpeed;
+			cameraCenter.x += dt * scrollSpeed;
 		}
 		if (Key.isDown(Key.RIGHT))
 		{
-			contentPos.x -= dt * scrollSpeed;
+			cameraCenter.x -= dt * scrollSpeed;
 		}
-		setCamera(contentPos);
+		
+		setCameraCenter(ship.entity.position.clone());
 	}
 	
 }

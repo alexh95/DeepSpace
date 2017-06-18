@@ -14,7 +14,6 @@ class Entity
 	public var angle : Float;
 	public var velocity : Vector;
 	
-	public var friction : Float;
 	public var maxSpeed : Float;
 	
 	public function new() 
@@ -22,13 +21,11 @@ class Entity
 		position = new Vector();
 		angle = 0.;
 		velocity = new Vector();
-		friction = 0.;
 	}
 	
 	public function move(acceleration : Vector) : Void
 	{
 		velocity = velocity.add(acceleration).sub(new Vector());
-		velocity.scale3(1. - friction);
 		var speed = velocity.length();
 		if (speed > maxSpeed)
 		{
