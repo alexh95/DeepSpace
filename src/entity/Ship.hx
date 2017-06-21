@@ -16,7 +16,7 @@ class Ship extends Sprite
 	
 	public var pixelsPerMeter : Float;
 	
-	public var baseAcceleration : Float;
+	public var baseThrust : Float;
 	public var baseAngularSpeed : Float;
 	private var directionRotationMatrix : Matrix;
 	
@@ -78,9 +78,9 @@ class Ship extends Sprite
 		
 		animation.setFrame(tileX, tileY);
 		
-		var acceleration : Vector = new Vector();
-		if (accForward) acceleration = new Vector(baseAcceleration, 0.);
-		else if (accBackward) acceleration = new Vector(-baseAcceleration, 0.);
+		var thrust : Vector = new Vector();
+		if (accForward) thrust = new Vector(baseThrust, 0.);
+		else if (accBackward) thrust = new Vector(-baseThrust, 0.);
 		
 		if (turnLeft) 
 		{
@@ -94,25 +94,29 @@ class Ship extends Sprite
 		}
 		
 		directionRotationMatrix.initRotateZ(entity.angle);
-		acceleration.transform(directionRotationMatrix);
+		thrust.transform(directionRotationMatrix);
 		
 		if (noAcc && space)
 		{
-			var movingDirection : Vector = entity.velocity.clone();
+			var mass : Float = entity.mass;
+			var velocity : Vector = entity.velocity.clone();
+			var movingDirection : Vector = velocity.clone();
 			movingDirection.normalize();
 			
-			acceleration = movingDirection.clone();
-			if (entity.velocity.length() <= baseAcceleration)
+			var momentum : Float = mass * velocity.length();
+			
+			thrust = movingDirection.clone();
+			if (momentum <= baseThrust)
 			{
-				acceleration.scale3(-entity.velocity.length());
+				thrust.scale3(-momentum);
 			}
 			else 
 			{
-				acceleration.scale3(-baseAcceleration);
+				thrust.scale3(-baseThrust);
 			}
 		}
 		
-		entity.move(acceleration);
+		entity.move(thrust, dt);
 		
 		var screenCoordinates : Vector = entity.position.clone();
 		screenCoordinates.scale3(pixelsPerMeter);

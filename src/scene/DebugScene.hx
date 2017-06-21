@@ -1,6 +1,7 @@
 package scene;
 
 import entity.Animation;
+import entity.Asteroid;
 import entity.Ship;
 import h2d.Bitmap;
 import h2d.Sprite;
@@ -90,16 +91,20 @@ class DebugScene extends GameScene
 		
 		debugPosition.text = "Screen Camera Center" + 
 			"\nX: " + Std.string(cameraCenter.x) + 
-			"\nY: " +  Std.string(cameraCenter.y);
+			"\nY: " +  Std.string(cameraCenter.y) + 
+			"\nTracking ship: " + Std.string(followShip);
 			
 		debugShip.text = "Ship Data" +
 			"\nX: " + Std.string(ship.entity.position.x) + 
 			"\nY: " + Std.string(ship.entity.position.y) +
-			"\nA: " + Std.string(ship.entity.angle);
+			"\nA: " + Std.string(ship.entity.angle) + 
+			"\nS: " + Std.string(ship.entity.velocity.length());
 		debugShip.setPos(20, debugPosition.y + debugPosition.textHeight + 20);
 	}
 	
 	var content : Sprite;
+	var oldIsDownL : Bool;
+	var followShip : Bool;
 	var cameraCenter : Vector;
 	var lastWidth : Int;
 	var lastHeight : Int;
@@ -107,6 +112,7 @@ class DebugScene extends GameScene
 	var pixelsPerMeter : Float;
 	
 	var ship : Ship;
+	var smallAsteroid : Asteroid;
 	var scaleSpeed : Float;
 	var scrollSpeed : Float;
 	
@@ -124,8 +130,6 @@ class DebugScene extends GameScene
 	override public function resize(width : Int, height : Int) : Void 
 	{
 		super.resize(width, height);
-		cameraCenter.x += (width - lastWidth) / 2.;
-		cameraCenter.y += (height - lastHeight) / 2.;
 		lastWidth = width;
 		lastHeight = height;
 		setCameraCenter(cameraCenter);
@@ -134,33 +138,41 @@ class DebugScene extends GameScene
 	
 	override public function init() : Void
 	{
-		debugLayer = new Sprite();
-		addChildAt(debugLayer, 2);
-		drawDebug();
-		
 		content = new Sprite(this);
+		oldIsDownL = false;
+		followShip = false;
 		cameraCenter = new Vector();
 		lastWidth = width;
 		lastHeight = height;
 		setCameraCenter(cameraCenter);
 		
-		ship = new Ship(content);
-		
 		pixelsPerMeter = 64. / 5.;
+		
+		ship = new Ship(content);
 		ship.pixelsPerMeter = pixelsPerMeter;
-		ship.baseAcceleration = 0.5 / sharedData.targetFPS;
-		ship.baseAngularSpeed = (Math.PI / 2.) / sharedData.targetFPS;
+		ship.entity.mass = 1000.;
 		ship.entity.maxSpeed = 30. / sharedData.targetFPS;
+		ship.baseThrust = (0.5 * ship.entity.mass) / sharedData.targetFPS;
+		ship.baseAngularSpeed = (Math.PI / 2.) / sharedData.targetFPS;
+		
+		smallAsteroid = new Asteroid(content);
+		smallAsteroid.entity.mass = 1000.;
+		//smallAsteroid.entity.friction = 0.1;
+		smallAsteroid.pixelsPerMeter = pixelsPerMeter;
+		//smallAsteroid.entity.maxSpeed = 30. / sharedData.targetFPS;
 		
 		scaleSpeed = 1.25 / sharedData.targetFPS;
 		scrollSpeed = 192. / sharedData.targetFPS;
+		
+		debugLayer = new Sprite();
+		addChildAt(debugLayer, 2);
+		drawDebug();
 	}
 	
 	override public function update(dt : Float) : Void
 	{
-		updateDebug(dt);
-		
 		ship.update(dt);
+		smallAsteroid.update(dt);
 		
 		if (Key.isDown(Key.O))
 		{
@@ -172,24 +184,42 @@ class DebugScene extends GameScene
 			content.scaleX -= dt * scaleSpeed;
 			content.scaleY -= dt * scaleSpeed;
 		}
+		
+		var oldCameraCenter : Vector = cameraCenter.clone();
 		if (Key.isDown(Key.UP))
 		{
-			cameraCenter.y += dt * scrollSpeed;
+			oldCameraCenter.y += dt * scrollSpeed;
 		}
 		if (Key.isDown(Key.DOWN))
 		{
-			cameraCenter.y -= dt * scrollSpeed;
+			oldCameraCenter.y -= dt * scrollSpeed;
 		}
 		if (Key.isDown(Key.LEFT))
 		{
-			cameraCenter.x += dt * scrollSpeed;
+			oldCameraCenter.x -= dt * scrollSpeed;
 		}
 		if (Key.isDown(Key.RIGHT))
 		{
-			cameraCenter.x -= dt * scrollSpeed;
+			oldCameraCenter.x += dt * scrollSpeed;
 		}
 		
-		setCameraCenter(ship.entity.position.clone());
+		var newIsDownL : Bool = Key.isDown(Key.L);
+		if (!oldIsDownL && newIsDownL)
+		{
+			followShip = !followShip;
+		}
+		oldIsDownL = newIsDownL;
+		
+		if (followShip)
+		{
+			setCameraCenter(ship.entity.position.clone());
+		}
+		else
+		{
+			setCameraCenter(oldCameraCenter);
+		}
+		
+		updateDebug(dt);
 	}
 	
 }
